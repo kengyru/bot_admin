@@ -73,8 +73,17 @@ async def on_join_request(event: ChatJoinRequest, bot: Bot) -> None:
     user_id = user.id
     logger.info("Заявка на вступление получена! chat_id=%s, user_id=%s, username=%s",
                 chat_id, user_id, user.username)
-    if chat_id != config.CHAT_ID:
-        logger.info("Заявка из другого чата (id=%s), ожидался %s — пропуск", chat_id, config.CHAT_ID)
+    if chat_id not in config.CHAT_IDS:
+        logger.info("Заявка из другого чата (id=%s), ожидались %s — пропуск", chat_id, config.CHAT_IDS)
+        return
+
+    # Боты — сразу отклоняем, в хранилище не добавляем
+    if user.is_bot:
+        try:
+            await bot.decline_chat_join_request(chat_id=chat_id, user_id=user_id)
+            logger.info("Заявка от бота отклонена сразу: user_id=%s, chat_id=%s", user_id, chat_id)
+        except Exception as e:
+            logger.exception("Ошибка при отклонении заявки от бота: %s", e)
         return
 
     logger.info("Получена заявка на вступление: user_id=%s, username=%s, chat_id=%s",
@@ -82,20 +91,16 @@ async def on_join_request(event: ChatJoinRequest, bot: Bot) -> None:
 
     message_ids: list[int] = []
     correct_answer: int | None = None
-    if not user.is_bot:
-        try:
-            keyboard, correct_answer, question = make_captcha_keyboard()
-            # answer_pm() использует user_chat_id — бот может писать в ЛС 5 минут без /start
-            msg = await event.answer_pm(
-                "Привет! Ты подал заявку на вступление в группу.\n\n"
-                f"Подтверди, что ты не бот — выбери правильный ответ:\n{question}\n\nУ тебя 2 минуты.",
-                reply_markup=keyboard,
-            )
-            message_ids.append(msg.message_id)
-        except Exception as e:
-            logger.warning("Не удалось написать пользователю %s в ЛС: %s", user_id, e)
-    else:
-        logger.info("Заявка от бота, будет отклонена по таймауту: user_id=%s", user_id)
+    try:
+        keyboard, correct_answer, question = make_captcha_keyboard()
+        msg = await event.answer_pm(
+            "Привет! Ты подал заявку на вступление в группу.\n\n"
+            f"Подтверди, что ты не бот — выбери правильный ответ:\n{question}\n\nУ тебя 2 минуты.",
+            reply_markup=keyboard,
+        )
+        message_ids.append(msg.message_id)
+    except Exception as e:
+        logger.warning("Не удалось написать пользователю %s в ЛС: %s", user_id, e)
 
     # Таймаут 2 минуты: после него — decline и удаление сообщений в ЛС
     async def timeout_task() -> None:

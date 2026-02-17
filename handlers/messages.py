@@ -34,9 +34,9 @@ async def cmd_start(message: Message, bot: Bot) -> None:
     )
 
 
-@router.message(F.chat.id == config.CHAT_ID)
+@router.message(F.chat.id.in_(config.CHAT_IDS))
 async def ignore_group_messages(message: Message) -> None:
-    """Игнорируем сообщения в группе (чтобы не было «Update is not handled» в логах)."""
+    """Игнорируем сообщения в группах (чтобы не было «Update is not handled» в логах)."""
     pass
 
 

@@ -33,7 +33,7 @@ async def main() -> None:
     dp.include_router(join_router)
     dp.include_router(messages_router)
 
-    logger.info("Бот запущен. Ожидаются заявки на вступление в чат id=%s", config.CHAT_ID)
+    logger.info("Бот запущен. Ожидаются заявки на вступление в чаты: %s", config.CHAT_IDS)
     # Важно: без chat_join_request бот не получит заявки на вступление
     await dp.start_polling(
         bot,
